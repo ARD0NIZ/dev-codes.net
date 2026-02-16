@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StarBDFD | Ticket System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-deep: #030305;
+            --bg-surface: #0a0a0c;
+            --border-dim: rgba(255, 255, 255, 0.06);
+            --border-highlight: rgba(255, 255, 255, 0.12);
+            --text-primary: #ffffff;
+            --text-secondary: #9ca3af;
+            --accent-primary: #8b5cf6;
+            --accent-secondary: #ec4899;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-deep);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 0%, rgba(139, 92, 246, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 90% 100%, rgba(236, 72, 153, 0.08) 0%, transparent 40%);
+            background-attachment: fixed;
+        }
+
+        /* Glass Cards */
+        .glass-panel {
+            background: rgba(10, 10, 12, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-dim);
+            border-radius: 20px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-panel:hover {
+            border-color: var(--border-highlight);
+            transform: translateY(-2px);
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Syntax Highlighting Window */
+        .code-editor {
+            background: #050507;
+            border: 1px solid var(--border-dim);
+            border-radius: 16px;
+            overflow: hidden;
+            font-family: 'JetBrains Mono', monospace;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+            transition: border-color 0.3s;
+        }
+
+        .editor-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 20px;
+            background: rgba(255, 255, 255, 0.02);
+            border-bottom: 1px solid var(--border-dim);
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s;
+        }
+
+        .editor-header:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .editor-controls-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .editor-dots {
+            display: flex;
+            gap: 8px;
+        }
+
+        .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .dot-red { background: #ff5f56; box-shadow: 0 0 10px rgba(255, 95, 86, 0.2); }
+        .dot-yellow { background: #ffbd2e; box-shadow: 0 0 10px rgba(255, 189, 46, 0.2); }
+        .dot-green { background: #27c93f; box-shadow: 0 0 10px rgba(39, 201, 63, 0.2); }
+
+        /* Collapse Animation Logic */
+        .editor-content {
+            padding: 24px;
+            overflow-x: auto;
+            font-size: 14px;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            /* Animation Props */
+            max-height: 5000px; /* Large enough to fit content */
+            opacity: 1;
+            transition: max-height 0.5s cubic-bezier(0, 1, 0, 1), opacity 0.3s ease-in-out, padding 0.3s ease;
+        }
+
+        .editor-content.collapsed {
+            max-height: 0;
+            opacity: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+            overflow: hidden;
+        }
+
+        /* Chevron Rotation */
+        .chevron-icon {
+            transition: transform 0.3s ease;
+            color: var(--text-secondary);
+        }
+        
+        .code-editor.is-collapsed .chevron-icon {
+            transform: rotate(-90deg);
+        }
+
+        .code-editor.is-collapsed .editor-header {
+            border-bottom-color: transparent;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+        /* Typography & Utilities */
+        .text-glow { text-shadow: 0 0 30px rgba(139, 92, 246, 0.3); }
+        .nav-link { position: relative; color: var(--text-secondary); transition: color 0.2s; }
+        .nav-link:hover { color: white; }
+        .nav-link::after {
+            content: ''; position: absolute; bottom: -4px; left: 0; width: 0; height: 2px;
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+            transition: width 0.3s ease;
+        }
+        .nav-link:hover::after { width: 100%; }
+
+        .tag {
+            font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em;
+            text-transform: uppercase; padding: 6px 12px; border-radius: 100px;
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-enter { animation: fadeInUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; opacity: 0; }
+        .delay-100 { animation-delay: 0.1s; }
+        .delay-200 { animation-delay: 0.2s; }
+        .delay-300 { animation-delay: 0.3s; }
+    </style>
+</head>
+<body class="selection:bg-purple-500/30">
+
+    <!-- Navbar -->
+    <nav class="fixed top-0 w-full z-50 border-b border-white/5 bg-black/50 backdrop-blur-xl">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+            <a href="../index.html" class="flex items-center gap-3">
+                <img src="https://i.imgur.com/Ij2VtCH.png" alt="Logo" class="w-9 h-9">
+                <span class="font-bold text-lg tracking-tight">StarBDFD</span>
+            </a>
+            <div class="hidden md:flex items-center gap-8 text-sm font-medium">
+                <a href="../codes.html" class="nav-link text-white">Codes</a>
+                <a href="../index.html#features" class="nav-link">Features</a>
+                <a href="../index.html#about" class="nav-link">About</a>
+                <a href="https://discord.gg/V85hdZ37Ny" class="bg-white text-black px-5 py-2 rounded-full hover:bg-gray-200 transition-colors font-semibold">
+                    Support Server
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Layout -->
+    <main class="max-w-7xl mx-auto px-6 pt-32 pb-24">
+        
+        <!-- Header Section -->
+        <header class="mb-20 animate-enter max-w-3xl">
+            <div class="flex gap-3 mb-6">
+                <span class="tag bg-purple-500/10 text-purple-400 border border-purple-500/20">Tokenless</span>
+                <span class="tag bg-pink-500/10 text-pink-400 border border-pink-500/20">HTML Transcripts</span>
+            </div>
+            <h1 class="text-5xl md:text-7xl font-bold mb-6 tracking-tight text-white text-glow">
+                Advanced Ticket System
+            </h1>
+            <p class="text-xl text-gray-400 leading-relaxed">
+                A robust, tokenless solution for Discord support tickets. It features web-based transcripts, advanced panel configuration, and powerful moderation tools.
+            </p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
+            
+            <!-- Left Column: Codes -->
+            <div class="lg:col-span-8 space-y-12">
+                
+                <!-- Setup Command -->
+                <div class="animate-enter delay-100">
+                    <div class="flex items-center justify-between mb-4 px-2">
+                        <div>
+                            <h2 class="text-2xl font-bold text-white">1. The Setup</h2>
+                            <p class="text-gray-500 text-sm mt-1">Run this command to initialize the system.</p>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs font-mono text-gray-500 block mb-1">TRIGGER</span>
+                            <span class="bg-white/5 text-purple-300 px-3 py-1 rounded-md text-sm font-mono border border-white/5">&lt;prefix&gt;</span>
+                        </div>
+                    </div>
+                    
+                    <div class="code-editor group">
+                        <div class="editor-header" onclick="toggleCode(this)">
+                            <div class="editor-controls-left">
+                                <svg class="chevron-icon w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                <div class="editor-dots">
+                                    <div class="dot dot-red"></div>
+                                    <div class="dot dot-yellow"></div>
+                                    <div class="dot dot-green"></div>
+                                </div>
+                            </div>
+                            <button class="copy-btn flex items-center gap-2 text-xs font-medium text-gray-400 hover:text-white transition-colors" data-target="code-1" onclick="event.stopPropagation()">
+                                <span class="copy-label">Copy Code</span>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                            </button>
+                        </div>
+                        <pre id="code-1" class="editor-content bdfd-code">
+$nomention
+$onlyAdmin[uhh, no perms!!]                            
+$c[thing]
+$var[trigger;$toLowercase[$message]]
+
+$c[setup command]
+$if[$var[trigger]==ticket-panel]
+$title[Ticket Panel Setup]
+$color[#62db4d]
+$description[Welcome, **$username**! You've landed in the right place to customize your ticket system. Let's get everything set up just the way you like it! ✨]
+$addField[✏️ Editing Embeds;Personalize your ticket embeds with the **Setup Embed** button below. Make them shine!]
+$addField[⚙️ Panel Configuration;Manage and create your ticket panels using the **Setup Panel(s)** button. Get ready to organize!]
+$addField[✅ All Set?;Once you're happy with everything, click the **Done (Send)** button to deploy your amazing ticket system!]
+$addButton[no;setupEmbed-$authorID;Setup Embed;Primary;;📝;]
+$addButton[no;setupPanel-$authorID;Setup Panel(s);Secondary;;⚙️;]
+$addButton[no;setupDone-$authorID;Done (Send);Success;;✅;]
+$addButton[no;setupDelete-$authorID;;Danger;;🗑️;]
+$stop
+$elseif[$var[trigger]==ticket-config]
+$title[Ticket System Settings ⚙️]
+$color[#5865F2]
+$description[Hey, **$username**! 👋 This is your streamlined control panel for advanced ticket configurations. Use the dropdown below to select a setting to manage, and use the buttons to finalize or reset your setup. ✨]
+$newSelectMenu[advancedTicketSettings;1;1;Choose a setting to configure...;]
+$addSelectMenuOption[advancedTicketSettings;👥 Staff Roles;setStaffRole-$authorID;Designate who can manage tickets.;;]
+$addSelectMenuOption[advancedTicketSettings;🚫 Blacklisted Roles;setBlacklistedRole-$authorID;Prevent specific roles from opening tickets.;;]
+$addSelectMenuOption[advancedTicketSettings;⏳ Cooldown Settings;setCooldown-$authorID;Control how often users can open new tickets.;;]
+$addSelectMenuOption[advancedTicketSettings;⚙️ Other Options;setOtherOptions-$authorID;Explore additional ticket system configurations.;;]
+$addButton[no;settingsDone-$authorID;Done;Success;;✅;]
+$addButton[no;settingsReset-$authorID;Reset All Settings;Danger;;🗑️;]
+$endif
+</pre>
+                    </div>
+                </div>
+
+                <!-- Interaction Handler -->
+                <div class="animate-enter delay-200">
+                    <div class="flex items-center justify-between mb-4 px-2">
+                        <div>
+                            <h2 class="text-2xl font-bold text-white">2. Handling Interactions</h2>
+                            <p class="text-gray-500 text-sm mt-1">Manages buttons, modals, and select menus.</p>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs font-mono text-gray-500 block mb-1">TRIGGER</span>
+                            <span class="bg-white/5 text-blue-300 px-3 py-1 rounded-md text-sm font-mono border border-white/5">$onInteraction</span>
+                        </div>
+                    </div>
+                    
+                    <div class="code-editor group">
+                        <div class="editor-header" onclick="toggleCode(this)">
+                            <div class="editor-controls-left">
+                                <svg class="chevron-icon w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                <div class="editor-dots">
+                                    <div class="dot dot-red"></div>
+                                    <div class="dot dot-yellow"></div>
+                                    <div class="dot dot-green"></div>
+                                </div>
+                            </div>
+                            <button class="copy-btn flex items-center gap-2 text-xs font-medium text-gray-400 hover:text-white transition-colors" data-target="code-2" onclick="event.stopPropagation()">
+                                <span class="copy-label">Copy Code</span>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                            </button>
+                        </div>
+                        <pre id="code-2" class="editor-content bdfd-code">
+$nomention
+$c[Configurable Stuff]
+$var[createTicketButtonLabel;Open a Ticket]
+$var[createTicketButtonEmoji;🎫]
+$var[ticketIntroductionMessage;Welcome, <@$authorID>! A staff member will be with you shortly. Please describe your issue in as much detail as possible to help us resolve it quickly.]
+
+$c[Button Author Checks]
+$if[$checkContains[$customID;-]]
+$textSplit[$customID;-]
+$if[$splitText[2]!=$authorID]
+$ephemeral
+Oops! This interaction belongs to **$username[$splitText[2]]**, not you. Please use your own interactions to interact. 🚫
+$removeAllComponents
+$stop
+$endif
+$endif
+
+$c[Select Menu Author Checks]
+$if[$checkContains[$message;-]]
+$textSplit[$message;-]
+$if[$splitText[2]!=$authorID]
+$ephemeral
+Oops! This interaction belongs to **$username[$splitText[2]]**, not you. Please use your own interactions to interact. 🚫
+$removeAllComponents
+$stop
+$endif
+$endif
+
+$c[Setup Embed Button]
+$if[$customID==setupEmbed-$authorID]
+$newModal[setupEmbedModal;Title]
+$addTextInput[title;short;Embed Title;1;256;true;Open a Ticket;Open a Ticket]
+$addTextInput[description;paragraph;Embed Description;1;4000;true;Need assistance? Our team is here to help! Please describe your issue in detail. 📝;Need assistance? Our team is here to help! Please describe your issue in detail. 📝]
+$addTextInput[footer;short;Embed Footer;1;256;false;We'll get back to you as soon as possible! 😊;We'll get back to you as soon as possible! 😊]
+$addTextInput[color;short;Embed Color;1;256;false;#62db4d;#62db4d]
+$addTextInput[image;short;Embed Image URL;1;256;false;https://starbdfd.vercel.app/assets/render.png;https://starbdfd.vercel.app/assets/render.png]
+$stop
+$endif
+
+$c[Setup Embed Modal]
+$if[$customID==setupEmbedModal]
+$ephemeral
+$setUserVar[ticketConfig;{"title": "$url[encode;$input[title]]", "description": "$url[encode;$input[description]]", "footer": "$url[encode;$input[footer]]", "color": "$url[encode;$input[color]]", "image": "$url[encode;$input[image]]", "panels": [  \]};$botID]
+> *This is a preview of your embed.*
+$title[$input[title]]
+$description[$input[description]]
+$if[$input[color]!=]
+$color[$input[color]]
+$endif
+$if[$input[footer]!=]
+$footer[$input[footer]]
+$endif
+$if[$input[image]!=]
+$image[$input[image]]
+$endif
+$addButton[no;openTicket;$var[createTicketButtonLabel];Primary;true;$var[createTicketButtonEmoji]]
+$stop
+$endif
+
+$c[Deploy Channel Select Menu Select]
+$if[$customID==setupDone-$authorID]
+$removeAllComponents
+$if[$getUserVar[ticketConfig;$botID]=={}]
+$ephemeral Please set up a ticket embed first. It looks like your configuration is empty! 😟
+$stop
+$endif
+$ephemeral
+$title[Select a Deploy Channel]
+$description[Almost there! Now, please select the channel where you'd like your ticket panel to be sent. This is where users will interact to open new tickets. 👇]
+$color[#62db4d]
+$footer[Choose wisely! You won't be able to change this later. 😉]
+$httpGet[https://cautious-telegram-ivory.vercel.app/tickets/smb?channels=$url[encode;$channelNames[,]]]
+$newSelectMenu[selectChannels-$authorID;0;1;Select a Channel;]
+$eval[$httpResult]
+$addButton[no;manualChannelInput-$authorID;Enter Channel ID Manually;Secondary;;📝;]
+$endif
+
+$c[Select Channel Confirmation]
+$if[$customID==selectChannels-$authorID]
+$var[selectedChannel;$channelID[$message]]
+$jsonParse[$getUserVar[ticketConfig;$botID]]
+$if[$channelType[$var[selectedChannel]]!=text]
+$ephemeral
+Oops! You can only select a **text channel** for your ticket panel. Please try again with a valid text channel! 📝
+$stop
+$endif
+$removeAllComponents
+$ephemeral
+Panel sent successfully!
+$var[ticketPanelEmbedID;$sendEmbedMessage[$var[selectedChannel];;$url[decode;$json[title]];;$url[decode;$json[description]];$if[$json[color]!=]$url[decode;$json[color]]$endif;;;$if[$json[footer]!=]$url[decode;$json[footer]]$endif;;;$if[$json[image]!=]$url[decode;$json[image]]$endif;;true]]
+$useChannel[$var[selectedChannel]]
+$if[$jsonArrayCount[panels]==0]
+$addButton[no;openTicket;$var[createTicketButtonLabel];Primary;;$var[createTicketButtonEmoji];$var[ticketPanelEmbedID]]
+$else
+$httpGet[https://cautious-telegram-ivory.vercel.app/tickets/psb?json=$url[encode;$getUserVar[ticketConfig;$botID]]]
+$newSelectMenu[openTicketSM;0;1;Choose a Panel;$var[ticketPanelEmbedID]]
+$eval[$httpResult]
+$endif
+$stop
+$endif
+
+$c[Delete Main Panel]
+$if[$customID==setupDelete-$authorID]
+$deleteMessage[$channelID;$messageID]
+$ephemeral
+$color[#57eb77]
+$title[Panel Deleted! 🗑️]
+$description[The ticket panel has been successfully removed.]
+$deleteIn[3s]
+$removeAllComponents
+$stop
+$endif
+
+$c[Setup Ticket Panels]
+$if[$customID==setupPanel-$authorID]
+$removeAllComponents
+$ephemeral
+$if[$getUserVar[ticketConfig;$botID]=={}]
+Please set up a ticket embed first. It looks like your configuration is empty! 😟
+$stop
+$endif
+$jsonParse[$getUserVar[ticketConfig;$botID]]
+$title[Panel Manager]
+$description[Welcome to the Panel Manager! 🎉 Here you can effortlessly create, edit, and remove your custom ticket panels. Let's get your support system organized! ✨]
+$color[#FFDDC1]
+$httpGet[https://cautious-telegram-ivory.vercel.app/tickets/apb?json=$url[encode;$getUserVar[ticketConfig;$botID]]]
+$eval[$httpResult]
+$addButton[no;addPanel-$authorID;Add New Panel;Primary;;➕;]
+$if[$jsonArrayCount[panels]>0]
+$addButton[no;editRemovePanel-$authorID;Edit/Remove Panel;Secondary;;✏️;]
+$endif
+$endif
+
+$c[Panel Creation Modal]
+$if[$customID==addPanel-$authorID]
+$newModal[addPanelModal;Create New Panel]
+$addTextInput[name;short;Panel Name;1;25;true;General Support;General Support]
+$addTextInput[description;short;Panel Description;1;50;true;Get help for anything!;Get help for anything!]
+$stop
+$endif
+
+$c[Panel Creation Modal Handler]
+$if[$customID==addPanelModal]
+$httpGet[https://cautious-telegram-ivory.vercel.app/tickets/jpc?json=$url[encode;$url[decode;$getUserVar[ticketConfig;$botID]]]&name=$url[encode;$input[name]]&description=$url[encode;$input[description]]]
+$if[$httpStatus==409]
+$ephemeral
+Whoops! It looks like a panel with the name "**$input[name]**" already exists. Please choose a unique name for your new panel. 🤔
+$stop
+$endif
+$setUserVar[ticketConfig;$httpResult;$botID]
+$ephemeral
+$jsonParse[$getUserVar[ticketConfig;$botID]]
+$title[Panel Manager]
+$description[Welcome to the Panel Manager! 🎉 Here you can effortlessly create, edit, and remove your custom ticket panels. Let's get your support system organized! ✨]
+$color[#FFDDC1]
+$httpGet[https://cautious-telegram-ivory.vercel.app/tickets/apb?json=$url[encode;$getUserVar[ticketConfig;$botID]]]
+$eval[$httpResult]
+$addButton[no;addPanel-$authorID;Add New Panel;Primary;;➕;]
+$if[$jsonArrayCount[panels]>0]
+$addButton[no;editRemovePanel-$authorID;Edit/Remove Panel;Secondary;;✏️;]
+$endif
+$stop
+$endif
+
+$c[Manual Channel Input]
+$if[$customID==manualChannelInput-$authorID]
+$newModal[manualChannelSelection;Manual Channel Selection]
+$addTextInput[channelID;short;Channel ID / Name;1;22;true;$channelID;$channelName[$channelID]]
+$stop
+$endif
+
+$c[Manual Channel Selection Modal Handler]
+$if[$customID==manualChannelSelection]
+$var[selectedChannel;$findChannel[$input[channelID]]]
+$jsonParse[$getUserVar[ticketConfig;$botID]]
+$if[$channelType[$var[selectedChannel]]!=text]
+$ephemeral
+Oops! You can only select a **text channel** for your ticket panel. Please try again with a valid text channel! 📝
+$stop
+$endif
+$removeAllComponents
+$ephemeral
+Panel sent successfully!
+$var[ticketPanelEmbedID;$sendEmbedMessage[$var[selectedChannel];;$url[decode;$json[title]];;$url[decode;$json[description]];$if[$json[color]!=]$url[decode;$json[color]]$endif;;;$if[$json[footer]!=]$url[decode;$json[footer]]$endif;;;$if[$json[image]!=]$url[decode;$json[image]]$endif;;true]]
+$useChannel[$var[selectedChannel]]
+$jsonParse[$getUserVar[ticketConfig;$botID]]
+$if[$jsonArrayCount[panels]==0]
+$addButton[no;openTicket;$var[createTicketButtonLabel];Primary;;$var[createTicketButtonEmoji];$var[ticketPanelEmbedID]]
+$else
+$httpGet[https://cautious-telegram-ivory.vercel.app/tickets/psb?json=$url[encode;$getUserVar[ticketConfig;$botID]]]
+$newSelectMenu[openTicketSM;0;1;Choose a Panel;$var[ticketPanelEmbedID]]
+$eval[$httpResult]
+$endif
+$stop
+$endif
+
+$c[Edit/Remove Panel Modal]
+$if[$customID==editRemovePanel-$authorID]
+$removeAllComponents
+$ephemeral
+$jsonParse[$getUserVar[ticketConfig;$botID]]
+$title[Edit or Remove Panels]
+$description[Here you can manage your existing ticket panels. Select a panel to either update its details or remove it entirely. Use the buttons below to choose an action! ✨]
+$color[#FFDDC1]
+$addField[Current Panels Overview;Here's a quick look at your configured panels. You'll choose which one to edit or remove in the next step! 👇]
+$httpGet[https://cautious-telegram-ivory.vercel.app/tickets/apb?json=$url[encode;$getUserVar[ticketConfig;$botID]]]
+$eval[$httpResult]
+$addButton[no;editPanel-$authorID;Edit Panel;Primary;;✏️;]
+$addButton[no;removePanel-$authorID;Remove Panel;Danger;;🗑️;]
+$stop
+$endif
+
+$c[Panel Editing]
+$if[$customID==editPanel-$authorID]
+$newModal[editPanelModal;Edit a Ticket Panel]
+$addTextInput[panelName;short;Panel Name;1;20;true;General Support;General Support]
+$addTextInput[newPanelName;short;New Panel Name;1;20;false;Better Support;Better Support]
+$addTextInput[newPanelDescription;short;New Panel Description;1;50;false;Better Description;Better Description]
+$stop
+$endif
+
+$c[Edit Panel Modal Handler]
+$if[$customID==editPanelModal]
+$httpGet[https://cautious-telegram-ivory.vercel.app/tickets/uodp?type=update&name=$url[encode;$input[panelName]]&newName=$url[encode;$input[newPanelName]]&newDescription=$url[encode;$input[newPanelDescription]]&json=$url[encode;$url[decode;$getUserVar[ticketConfig;$botID]]]]
+$if[$httpStatus==404]
+$ephemeral
+Oops! A panel named "**$input[panelName]**" was not found. Please double-check the name and try again. 😕
+$stop
+$endif
+$if[$httpStatus==409]
+$ephemeral
+A panel with the new name "**$input[newPanelName]**" already exists. Please choose a unique name. 🤔
+$stop
+$endif
+$setUserVar[ticketConfig;$httpResult;$botID]
+$ephemeral
+$jsonParse[$getUserVar[ticketConfig;$botID]]
+$title[Panel Manager]
+$description[Welcome to the Panel Manager! 🎉 Here you can effortlessly create, edit, and remove your custom ticket panels. Let's get your support system organized! ✨]
+$color[#FFDDC1]
+$httpGet[https://cautious-telegram-ivory.vercel.app/tickets/apb?json=$url[encode;$getUserVar[ticketConfig;$botID]]]
+$eval[$httpResult]
+$addButton[no;addPanel-$authorID;Add New Panel;Primary;;➕;]
+$if[$jsonArrayCount[panels]>0]
+$addButton[no;editRemovePanel-$authorID;Edit/Remove Panel;Secondary;;✏️;]
+$endif
+$stop
+$endif
+
+$c[Remove Panel Modal]
+$if[$customID==removePanel-$authorID]
+$newModal[removePanelModal;Remove a Ticket Panel]
+$addTextInput[panelName;short;Panel Name to Remove;1;20;true;General Support;Enter the exact name of the panel you wish to remove.]
+$stop
+$endif
+
+$c[Remove Panel Modal Handler]
+$if[$customID==removePanelModal]
+$httpGet[https://cautious-telegram-ivory.vercel.app/tickets/uodp?type=delete&name=$url[encode;$input[panelName]]&json=$url[encode;$url[decode;$getUserVar[ticketConfig;$botID]]]]
+$if[$httpStatus==404]
+$ephemeral
+Oops! A panel named "**$input[panelName]**" was not found. Please double-check the name and try again. 😕
+$stop
+$endif
+$setUserVar[ticketConfig;$httpResult;$botID]
+$ephemeral
+$jsonParse[$getUserVar[ticketConfig;$botID]]
+$title[Panel Manager]
+$description[Welcome to the Panel Manager! 🎉 Here you can effortlessly create, edit, and remove your custom ticket panels. Let's get your support system organized! ✨]
+$color[#FFDDC1]
+$httpGet[https://cautious-telegram-ivory.vercel.app/tickets/apb?json=$url[encode;$getUserVar[ticketConfig;$botID]]]
+$eval[$httpResult]
+$addButton[no;addPanel-$authorID;Add New Panel;Primary;;➕;]
+$if[$jsonArrayCount[panels]>0]
+$addButton[no;editRemovePanel-$authorID;Edit/Remove Panel;Secondary;;✏️;]
+$endif
+$stop
+$endif
+
+$c[Select Menu Panel Handlers]
+$if[$checkContains[$message;_]]
+$textSplit[$message;_]
+$var[newID;$splitText[1]]
+$var[panelName;$splitText[2]]
+$endif
+
+$c[Set Staff Role Modal]
+$if[$message==setStaffRole-$authorID]
+$jsonParse[$getUserVar[ticketRoles;$botID]]
+$newModal[setStaffRoleModal;Configure Staff Roles]
+$if[$json[staffRoles]==]
+$addTextInput[staffRoleIDs;paragraph;Staff Role IDs (Comma-separated);0;1000;false;123, 456;Enter one or more Discord Role IDs, separated by commas.]
+$else
+$addTextInput[staffRoleIDs;paragraph;Staff Role IDs (Comma-separated);0;1000;false;$json[staffRoles];Enter one or more Discord Role IDs, separated by commas.]
+$endif
+$endif
+
+$c[Staff Role Modal Result]
+$if[$customID==setStaffRoleModal]
+$if[$input[staffRoleIDs]==]
+$ephemeral
+Staff roles removed successfully!
+$jsonParse[$getUserVar[ticketRoles;$botID]]
+$jsonSetString[staffRoles;$input[staffRoleIDs]]
+$setUserVar[ticketRoles;$jsonStringify;$botID]
+$else
+$ephemeral
+$jsonParse[$getUserVar[ticketRoles;$botID]]
+$color[#57eb77]
+$jsonSetString[staffRoles;$input[staffRoleIDs]]
+$setUserVar[ticketRoles;$jsonStringify;$botID]
+$httpGet[https://cautious-telegram-ivory.vercel.app/tickets/itrm?json=$getUserVar[ticketRoles;$botID]&commas=true]
+$title[Staff Roles Updated! ✅]
+$description[Your staff roles have been successfully configured.]
+$addField[Assigned Staff Roles;$httpResult[staffRoles]]
+$stop
+$endif
+$endif
+
+$c[Blacklist Staff Role Modal]
+$if[$message==setBlacklistedRole-$authorID]
+$jsonParse[$getUserVar[ticketRoles;$botID]]
+$newModal[setBlacklistedRoleModal;Configure Blacklisted Roles]
+$if[$json[blacklistedRoles]==]
+$addTextInput[blacklistedRoleIDs;paragraph;Blacklisted Role IDs (Comma-separated);0;1000;false;123, 456;Enter one or more Discord Role IDs, separated by commas.]
+$else
+$addTextInput[blacklistedRoleIDs;paragraph;Blacklisted Role IDs (Comma-separated);0;1000;false;$json[blacklistedRoles];Enter one or more Discord Role IDs, separated by commas.]
+$endif
+$endif
+
+$c[Blacklist Role Modal Result]
+$if[$customID==setBlacklistedRoleModal]
+$if[$input[blacklistedRoleIDs]==]
+$ephemeral
+Blacklisted roles removed successfully!
+$jsonParse[$getUserVar[ticketRoles;$botID]]
+$jsonSetString[blacklistedRoles;$input[blacklistedRoleIDs]]
+$setUserVar[ticketRoles;$jsonStringify;$botID]
+$else
+$ephemeral
+$color[#57eb77]
+$jsonParse[$getUserVar[ticketRoles;$botID]]
+$jsonSetString[blacklistedRoles;$input[blacklistedRoleIDs]]
+$setUserVar[ticketRoles;$jsonStringify;$botID]
+$httpGet[https://cautious-telegram-ivory.vercel.app/tickets/itrm?json=$getUserVar[ticketRoles;$botID]&commas=true]
+$title[Blacklisted Roles Updated! ✅]
+$description[Your blacklisted roles have been successfully configured.]
+$addField[Assigned Blacklisted Roles;$httpResult[blacklistedRoles]]
+$stop
+$endif
+$endif
+
+$c[Ticket Cooldown Config]
+$if[$message==setCooldown-$authorID]
+$newModal[setCooldownModal;Ticket Cooldown Setup ⏰]
+$addTextInput[time;short;Cooldown Duration (e.g., 12h, 30m, 1d);0;10;false;12h;How long should users wait before opening another ticket?]
+$stop
+$endif
+
+$c[Ticket Cooldown Config Modal]
+$if[$customID==setCooldownModal]
+$if[$input[time]==]
+$ephemeral
+Cooldown removed successfully!
+$jsonParse[$getUserVar[ticketRoles;$botID]]
+$jsonSet[cooldown;]
+$setUserVar[ticketRoles;$jsonStringify;$botID]
+$else
+$ephemeral
+$jsonParse[$getUserVar[ticketRoles;$botID]]
+$httpGet[https://cautious-telegram-ivory.vercel.app/tickets/tts?time=$input[time]]
+$jsonSet[cooldown;$httpResult]
+$setUserVar[ticketRoles;$jsonStringify;$botID]
+$color[#57eb77]
+$title[Cooldown Set! ⏳]
+$description[The ticket cooldown has been successfully updated. Users will now need to wait before opening a new ticket. 🎉]
+$addField[New Cooldown Duration;**$input[time]** (`$httpResults`)]
+$stop
+$endif
+$endif
+
+$c[Reset All Settings]
+$if[$customID==settingsReset-$authorID]
+$ephemeral
+$removeAllComponents
+$color[#57eb77]
+$title[Settings Reset! 🗑️]
+$description[All advanced ticket system settings have been successfully reset to their default values. You can now reconfigure them as needed! ✨]
+$resetUserVar[ticketRoles;$botID]
+$stop
+$endif
+
+$c[Settings Done]
+$if[$customID==settingsDone-$authorID]
+$removeAllComponents
+$title[Ticket Panel Setup]
+$color[#62db4d]
+$description[Welcome, **$username**! You've landed in the right place to customize your ticket system. Let's get everything set up just the way you like it! ✨]
+$addField[✏️ Editing Embeds;Personalize your ticket embeds with the **Setup Embed** button below. Make them shine!]
+$addField[⚙️ Panel Configuration;Manage and create your ticket panels using the **Setup Panel(s)** button. Get ready to organize!]
+$addField[✅ All Set?;Once you're happy with everything, click the **Done (Send)** button to deploy your amazing ticket system!]
+$addButton[no;setupEmbed-$authorID;Setup Embed;Primary;;📝;]
+$addButton[no;setupPanel-$authorID;Setup Panel(s);Secondary;;⚙️;]
+$addButton[no;setupDone-$authorID;Done (Send);Success;;✅;]
+$addButton[no;setupDelete-$authorID;;Danger;;🗑️;]
+$stop
+$endif
+
+$c[Other Settings]
+$if[$message==setOtherOptions-$authorID]
+$removeAllComponents
+$jsonParse[$getUserVar[ticketConfig;$botID]]
+$title[Ticket System - Other Settings]
+$description[Here you can fine-tune additional aspects of your ticket system. Choose an option below to customize its behavior! 👇]
+$color[#62db4d]
+$addButton[no;setGeneralSettings-$authorID;General Settings;Primary;;⚙️;]
+$addButton[no;setLoggingSettings-$authorID;Logging Settings;Secondary;;📝;]
+$if[$json[transcripts]==]
+$addButton[no;setTranscriptsSettings-$authorID;Transcripts;Danger;;📜;]
+$else
+$addButton[no;setTranscriptsSettings-$authorID;Transcripts;Success;;📜;]
+$endif
+$stop
+$endif
+
+$c[Set Transcripts]
+$if[$customID==setTranscriptsSettings-$authorID]
+$jsonParse[$getUserVar[ticketConfig;$botID]]
+$title[Ticket System - Other Settings]
+$description[Here you can fine-tune additional aspects of your ticket system. Choose an option below to customize its behavior! 👇]
+$color[#62db4d]
+$if[$or[$json[transcripts]==;$json[transcripts]==false]]
+$jsonSetString[transcripts;true]
+$setUserVar[ticketConfig;$jsonStringify;$botID]
+$editButton[setTranscriptsSettings-$authorID;Transcripts;success;;📜;]
+$elseif[$json[transcripts]==true]
+$jsonSetString[transcripts;false]
+$setUserVar[ticketConfig;$jsonStringify;$botID]
+$editButton[setTranscriptsSettings-$authorID;Transcripts;danger;;📜;]
+$endif
+$stop
+$endif
+
+$c[Set General Settings]
+$if[$customID==setGeneralSettings-$authorID]
+$jsonParse[$getUserVar[ticketConfig;$botID]]
+$removeAllComponents
+$title[General Ticket Settings ⚙️]
+$description[Here you can decide how new tickets are created! Choose between separate channels or threads for your support system. 👇]
+$color[#62db4d]
+$newSelectMenu[setTicketType;1;1;Choose your preferred ticket type...;]
+$addSelectMenuOption[setTicketType;Separate Channels;set_c-$authorID;Each new ticket opens in a dedicated category.]
+$addSelectMenuOption[setTicketType;Threads;set_t-$authorID;New tickets will be created as threads in a designated channel.]
+$if[$json[ticketType]==c]
+$addButton[no;setTicketCategory-$authorID;Ticket Category;Primary;;📁;]
+$endif
+$stop
+$endif
+
+$c[Set Ticket Type]
+$if[$var[newID]==set]
+$jsonParse[$getUserVar[ticketConfig;$botID]]
+$ephemeral
+$removeAllComponents
+$color[#57eb77]
+$if[$var[panelName]==c-$authorID]
+$jsonSetString[ticketType;c]
+$setUserVar[ticketConfig;$jsonStringify;$botID]
+$title[Ticket Type Updated! 📁]
+$description[Great! New tickets will now be created as **separate channels**.]
+$addButton[no;setTicketCategory-$authorID;Ticket Category;Primary;;📁;$messageID]
+$else
+$jsonSetString[ticketType;t]
+$setUserVar[ticketConfig;$jsonStringify;$botID]
+$title[Ticket Type Updated! 🧵]
+$description[Awesome! New tickets will now be created as **threads**.]
+$removeButtons[$messageID]
+$endif
+$stop
+$endif
+
+$c[Set Ticket Category]
+$if[$customID==setTicketCategory-$authorID]
+$jsonParse[$getUserVar[ticketConfig;$botID]]
+$newModal[setTicketCategoryModal;Set Ticket Category]
+$if[$json[ticketCategory]==]
+$addTextInput[categoryID;short;Ticket Category ID;0;25;true;123456789012345678;Enter the ID of the Discord category for new ticket channels. 📁]
+$else
+$addTextInput[categoryID;short;Ticket Category ID;0;25;true;$json[ticketCategory];Enter the ID of the Discord category for new ticket channels. 📁]
+$endif
+$stop
+$endif
+
+$c[ticket category modal]
+$if[$customID==setTicketCategoryModal]
+$jsonParse[$getUserVar[ticketConfig;$botID]]
+$jsonSetString[ticketCategory;$input[categoryID]]
+$setUserVar[ticketConfig;$jsonStringify;$botID]
+$ephemeral
+$color[#57eb77]
+$title[Ticket Category Set! ✅]
+$description[The ticket category has been successfully configured! New ticket channels will now be created in **$input[categoryID]**.]
+$stop
+$endif
+
+$c[Logging Settings Button]
+$if[$customID==setLoggingSettings-$authorID]
+$jsonParse[$getUserVar[ticketConfig;$botID]]
+$newModal[setLoggingChannelModal;Configure Logging Channel ⚙️]
+$addTextInput[logChannelID;short;Logging Channel ID;18;22;true;$json[loggingChannel];Enter the ID of your logs channel.]
+$stop
+$endif
+
+$c[Logging Channel Modal Handler]
+$if[$customID==setLoggingChannelModal]
+$var[logChannel;$findChannel[$input[logChannelID]]]
+$if[$channelExists[$var[logChannel]]==false]
+$ephemeral
+$color[#ff0000]
+$title[❌ Invalid Channel]
+$description[The Channel ID you provided (`$input[logChannelID]`) is invalid or I cannot see it. Please make sure you've entered a correct ID and that I have permission to view that channel.]
+$stop
+$endif
+$jsonParse[$getUserVar[ticketConfig;$botID]]
+$jsonSetString[loggingChannel;$var[logChannel]]
+$setUserVar[ticketConfig;$jsonStringify;$botID]
+$ephemeral
+$color[#57eb77]
+$title[✅ Logging Channel Set!]
+$description[Great! All future ticket events will now be logged in <#$var[logChannel]>. ✨]
+$stop
+$endif
+
+$c[Open Panel Ticket]
+$if[$var[newID]==open]
+$jsonParse[$getUserVar[ticketRoles;$botID]]
+$if[$json[blacklistedRoles]!=]
+$c[Blacklist Check]
+$httpGet[https://cautious-telegram-ivory.vercel.app/tickets/hrc?roles=$json[blacklistedRoles]]
+$if[$or[$eval[$httpResult]]==true]
+$ephemeral
+$removeAllComponents
+$color[#ff0000]
+$title[❌ Access Denied]
+$description[You are not allowed to create a ticket because you have a blacklisted role. If you believe this is a mistake, please contact a server administrator.]
+$stop
+$endif
+$endif
+$jsonParse[$getUserVar[ticketRoles;$botID]]
+$if[$json[cooldown]!=]
+$if[$json[cooldown]>1]
+$cooldown[$json[cooldown]s;]
+$else
+$cooldown[1s;]
+$endif
+$endif
+$c[Cooldown Check]
+$if[$getCooldown[normal]>1]
+$ephemeral
+$title[❌ Woah, Slow Down!]
+$color[#ff0000]
+$description[You are on cooldown! Please wait **<t:$sum[$getTimestamp;$getCooldown[normal]]:R>** before creating another ticket.]
+$removeAllComponents
+$stop
+$endif
+$jsonParse[$getUserVar[ticketConfig;$botID]]
+$httpGet[https://cautious-telegram-ivory.vercel.app/tickets/suc?username=$username]
+$var[username;$httpResult]
+$httpGet[https://cautious-telegram-ivory.vercel.app/tickets/suc?username=$url[encode;$var[panelName]]]
+$var[panel;$httpResult]
+$c[ticket category check]
+$if[$json[ticketType]==t]
+$ephemeral 
+$removeAllComponents
+$title[Feature Coming Soon! 🚧]
+$color[#5865F2]
+$description[We're excited about this feature too! However, due to current limitations with creating **Private Threads** in BDFD, this option is temporarily unavailable.
+
+Please use **Separate Channels** for now. We are monitoring updates and plan to release this in **Version 2** of the system! 🚀]
+$footer[Please switch your Ticket Type to "Separate Channels" in the config! ⚙️]
+$stop
+$else
+$if[$or[$channelExists[$findChannel[$var[panel]-$var[username]]]==true;$channelExists[$findChannel[📌┆$var[panel]-$var[username]]]==true]]
+$ephemeral $removeAllComponents
+$title[❌ Ticket Already Open]
+$color[#ff0000]
+$description[You already have a ticket open in the **$var[panelName]** category. Please close your existing ticket before opening a new one.]
+$addButton[no;https://discord.com/channels/$guildID/$findChannel[$var[panel]-$var[username]]$findChannel[📌┆$var[panel]-$var[username]];Jump to Ticket;link;;;]
+$stop
+$endif
+$if[$json[ticketCategory]==]
+$ephemeral
+$removeAllComponents
+$title[⚠️ Configuration Error]
+$color[#ffae00]
+$description[The ticket system is not fully configured yet! The **Ticket Category** is missing.
+Please ask an admin to run `ticket-config` and set the category in General Settings.]
+$stop
+$endif
+$async[1]
+$createChannel[$var[panel]-$var[username];text;$json[ticketCategory]]
+$endasync
+$await[1]
+$var[id;$channelID[$var[panel]-$var[username]]]
+$editChannelPerms[$var[id];$guildID;-readmessages]
+$jsonParse[$getUserVar[ticketRoles;$botID]]
+$httpGet[https://cautious-telegram-ivory.vercel.app/tickets/ecp?channelID=$var[id]&roles=$json[staffRoles]]
+$eval[$httpResult]
+$httpGet[https://cautious-telegram-ivory.vercel.app/tickets/itrm?json=$getUserVar[ticketRoles;$botID]&commas=true]
+$jsonParse[$getUserVar[ticketConfig;$botID]]
+$useChannel[$var[id]]
+$var[msgid;$sendEmbedMessage[$var[id];<@$authorID>,$httpResult[staffRoles];Ticket Opened: $var[panelName];https://discord.com/channels/$guildID/$var[id];$var[ticketIntroductionMessage];$url[decode;$json[color]];Opened by: $displayName;$authorAvatar;Powered by: $username[$botID];$userAvatar[$botID];$serverIcon;;true;true]]
+$addButton[no;staffPanel;Staff Panel;secondary;;🛠️;$var[msgid]]
+$addButton[no;ccloseTicket;Close Ticket;danger;;🔒;$var[msgid]]
+$pinMessage[$var[id];$var[msgid]]
+$setChannelVar[ticket;$authorID;$var[id]]
+$c[Log New Ticket Creation]
+$if[$json[loggingChannel]!=]
+$sendEmbedMessage[$json[loggingChannel];;New Ticket Created: $var[panelName];https://discord.com/channels/$guildID/$var[id];**Opened by:** <@$authorID> (`$authorID`)
+**Panel:** $var[panelName];$url[decode;$json[color]];$username[$authorID];$authorAvatar;Powered by $username[$botID];$userAvatar[$botID];;;true;]
+$endif
+$stop
+$stop
+$endif
+$stop
+$endif
+
+$c[Open Ticket Button Handler]
+$if[$customID==openTicket]
+$c[Set a default name since buttons dont carry specific panel names]
+$var[panelName;Support Ticket]
+$jsonParse[$getUserVar[ticketRoles;$botID]]
+$c[Blacklist Check]
+$httpGet[https://cautious-telegram-ivory.vercel.app/tickets/hrc?roles=$json[blacklistedRoles]]
+$if[$or[$eval[$httpResult]]==true]
+$ephemeral
+$removeAllComponents
+$color[#ff0000]
+$title[❌ Access Denied]
+$description[You are not allowed to create a ticket because you have a blacklisted role. If you believe this is a mistake, please contact a server administrator.]
+$stop
+$endif
+$c[Cooldown Check]
+$jsonParse[$getUserVar[ticketRoles;$botID]]
+$if[$json[cooldown]>1]
+$cooldown[$json[cooldown]s;]
+$else
+$cooldown[1s;]
+$endif
+$if[$getCooldown[normal]>1]
+$ephemeral
+$title[❌ Woah, Slow Down!]
+$color[#ff0000]
+$description[You are on cooldown! Please wait **<t:$sum[$getTimestamp;$getCooldown[normal]]:R>** before creating another ticket.]
+$removeAllComponents
+$stop
+$endif
+$c[Sanitize Username]
+$httpGet[https://cautious-telegram-ivory.vercel.app/tickets/suc?username=$username]
+$var[username;$httpResult]
+$c[Load Config]
+$jsonParse[$getUserVar[ticketConfig;$botID]]
+$c[Ticket Type Check]
+$if[$json[ticketType]==t]
+$ephemeral
+$removeAllComponents
+$title[Feature Coming Soon! 🚧]
+$color[#5865F2]
+$description[We're excited about this feature too! However, due to current limitations with creating **Private Threads** in BDFD, this option is temporarily unavailable.
+
+Please use **Separate Channels** for now. We are monitoring updates and plan to release this in **Version 2** of the system! 🚀]
+$footer[Please switch your Ticket Type to "Separate Channels" in the config! ⚙️]
+$stop
+$else
+$c[Check if ticket already exists with new naming format]
+$if[$or[$channelExists[$findChannel[ticket-$var[username]]]==true;$channelExists[$findChannel[📌┆ticket-$var[username]]]==true]]
+$ephemeral 
+$title[❌ Ticket Already Open]
+$color[#ff0000]
+$description[You already have a ticket open. Please close your existing ticket before opening a new one.]
+$addButton[no;https://discord.com/channels/$guildID/$findChannel[ticket-$var[username]]$findChannel[📌┆ticket-$var[username]];Jump to Ticket;link;;;]
+$stop
+$endif
+$if[$json[ticketCategory]==]
+$ephemeral
+$title[⚠️ Configuration Error]
+$color[#ffae00]
+$description[The ticket system is not fully configured yet! The **Ticket Category** is missing.
+Please ask an admin to run `ticket-config` and set the category in General Settings.]
+$stop
+$endif
+Ticket created successfully!
+$async[1]
+$createChannel[ticket-$var[username];text;$json[ticketCategory]]
+$endasync
+$await[1]
+$var[id;$channelID[ticket-$var[username]]]
+$editChannelPerms[$var[id];$guildID;-readmessages]
+$c[Calculate Staff Permissions]
+$jsonParse[$getUserVar[ticketRoles;$botID]]
+$httpGet[https://cautious-telegram-ivory.vercel.app/tickets/ecp?channelID=$var[id]&roles=$json[staffRoles]]
+$eval[$httpResult]
+$httpGet[https://cautious-telegram-ivory.vercel.app/tickets/itrm?json=$getUserVar[ticketRoles;$botID]&commas=true]
+$c[Send Ticket Message]
+$jsonParse[$getUserVar[ticketConfig;$botID]]
+$useChannel[$var[id]]
+$var[msgid;$sendEmbedMessage[$var[id];<@$authorID>,$httpResult[staffRoles];Ticket Opened: $var[panelName];https://discord.com/channels/$guildID/$var[id];$var[ticketIntroductionMessage];$url[decode;$json[color]];Opened by: $displayName;$authorAvatar;Powered by: $username[$botID];$userAvatar[$botID];$serverIcon;;true;true]]
+$addButton[no;staffPanel;Staff Panel;secondary;;🛠️;$var[msgid]]
+$addButton[no;ccloseTicket;Close Ticket;danger;;🔒;$var[msgid]]
+$pinMessage[$var[id];$var[msgid]]
+$setChannelVar[ticket;$authorID;$var[id]]
+$c[Log New Ticket Creation]
+$if[$json[loggingChannel]!=]
+$sendEmbedMessage[$json[loggingChannel];;New Ticket Created: $var[panelName];https://discord.com/channels/$guildID/$var[id];**Opened by:** <@$authorID> (`$authorID`)
+**Channel:** <#$var[id]>;$url[decode;$json[color]];$username[$authorID];$authorAvatar;Powered by $username[$botID];$userAvatar[$botID];;;true;]
+$endif
+$stop
+$stop
+$endif
+$stop
+$endif
+
+$c[Staff Control Panel]
+$if[$customID==staffPanel]
+$jsonParse[$getUserVar[ticketRoles;$botID]]
+$ephemeral
+$removeAllComponents
+$httpGet[https://cautious-telegram-ivory.vercel.app/tickets/hrc?roles=$json[staffRoles]]
+$if[$or[$eval[$httpResult]]==true]
+$jsonParse[$getUserVar[ticketConfig;$botID]]
+$title[Staff Panel]
+$color[$url[decode;$json[color]]]
+$description[Hey **$displayName**! Welcome to the staff panel. Use the buttons below to manage this ticket.]
+$textSplit[$getChannelVar[ticket];,]
+$var[claimed;$splitText[2]]
+$var[claimedBy;$splitText[3]]
+$if[$var[claimedBy]==$authorID]
+$addButton[no;cunclaimTicket;Unclaim;Primary;;↩️;]
+$endif
+$if[$and[$var[claimed]!=1;$var[claimedBy]!=$authorID]]
+$addButton[no;cclaimTicket;Claim;Primary;;🙋;]
+$elseif[$and[$var[claimed]==1;$var[claimedBy]!=$authorID]]
+$addButton[no;cclaimTicket;Claimed by: $username[$var[claimedBy]];Primary;true;🙋;]
+$endif
+$addButton[no;ccloseTicket;Close;Danger;;🔒;]
+$addButton[no;cstickyTicket;Sticky;Secondary;;📌;]
+$addButton[no;cuserInfo;User Info;Secondary;;ℹ️;]
+$stop
+$else
+$color[#ff0000]
+$title[❌ Access Denied]
+$description[You are not allowed to view the staff panel.]
+$stop
+$endif
+$endif
+
+$c[claimTicket]
+$if[$customID==cclaimTicket]
+$sendMessage[This ticket has been claimed by <@$authorID>! They will be with you shortly.]
+$setChannelVar[ticket;$getChannelVar[ticket],1,$authorID]
+$jsonParse[$getUserVar[ticketConfig;$botID]]
+$title[Staff Panel]
+$color[$url[decode;$json[color]]]
+$description[Hey **$displayName**! Welcome to the staff panel. Use the buttons below to manage this ticket.]
+$removeButtons
+$addButton[no;cunclaimTicket;Unclaim;Primary;;↩️;]
+$addButton[no;ccloseTicket;Close;Danger;;🔒;]
+$addButton[no;cstickyTicket;Sticky;Secondary;;📌;]
+$addButton[no;cuserInfo;User Info;Secondary;;ℹ️;]
+$if[$json[loggingChannel]!=]
+$sendEmbedMessage[$json[loggingChannel];;Ticket Claimed: #$channelName[$channelID];https://discord.com/channels/$guildID/$channelID;The ticket was claimed by <@$authorID> (`$authorID`).;#3498db;$username[$authorID];$authorAvatar;Powered by $username[$botID];$userAvatar[$botID];;;true;]
+$endif
+$stop
+$endif
+
+$if[$customID==cunclaimTicket]
+$jsonParse[$getUserVar[ticketConfig;$botID]]
+$title[Staff Panel]
+$color[$url[decode;$json[color]]]
+$description[Hey **$displayName**! Welcome to the staff panel. Use the buttons below to manage this ticket.]
+$removeButtons
+$addButton[no;cclaimTicket;Claim;Primary;;🙋;]
+$addButton[no;ccloseTicket;Close;Danger;;🔒;]
+$addButton[no;cstickyTicket;Sticky;Secondary;;📌;]
+$addButton[no;cuserInfo;User Info;Secondary;;ℹ️;]
+$textSplit[$getChannelVar[ticket];,]
+$setChannelVar[ticket;$splitText[1]]
+$sendMessage[<@$authorID> has unclaimed this ticket.]
+$if[$json[loggingChannel]!=]
+$sendEmbedMessage[$json[loggingChannel];;Ticket Unclaimed: #$channelName[$channelID];https://discord.com/channels/$guildID/$channelID;The ticket was unclaimed by <@$authorID> (`$authorID`).;#f1c40f;$username[$authorID];$authorAvatar;Powered by $username[$botID];$userAvatar[$botID];;;true;]
+$endif
+$stop
+$endif
+
+$if[$customID==ccloseTicket]
+$ephemeral
+$title[Are you sure?]
+$color[#ffae00]
+$description[Are you sure you want to close this ticket? This action cannot be undone.]
+$removeAllComponents
+$addButton[no;cconfirmClose;Yes, Close Ticket;Success]
+$addButton[no;cunconfirmClose;No, Cancel;Danger]
+$stop
+$endif
+
+$if[$customID==cunconfirmClose]
+$ephemeral 
+$description[✅ Operation cancelled.]
+$color[#57F287]
+$removeAllComponents
+$stop
+$endif
+
+$if[$customID==cconfirmClose]
+$jsonParse[$getUserVar[ticketConfig;$botID]]
+$textSplit[$getChannelVar[ticket];,]
+$var[ticketOpener;$splitText[1]]
+$if[$json[loggingChannel]!=]
+$var[msg;$sendEmbedMessage[$json[loggingChannel];;Ticket Closed: #$channelName[$channelID];https://discord.com/channels/$guildID/$channelID;**Opened by:** <@$var[ticketOpener]> (`$var[ticketOpener]`)
+**Closed by:** <@$authorID> (`$authorID`);#ff0000;$username[$authorID];$authorAvatar;Powered by $username[$botID];$userAvatar[$botID];;;true;true]]
+$if[$json[transcripts]==true]
+$useChannel[$json[loggingChannel]]
+$addButton[no;https://add.servermaker.xyz/$channelID;View Transcript;link;;;$var[msg]]
+$endif
+$endif
+$deleteChannels[$channelID]
+$stop
+$endif
+
+$if[$customID==cstickyTicket]
+$defer
+$jsonParse[$getUserVar[ticketRoles;$botID]]
+$httpGet[https://cautious-telegram-ivory.vercel.app/tickets/itrm?json=$url[encode;$getUserVar[ticketRoles;$botID]]&commas=true]
+$var[staffPings;$httpResult[staffRoles]]
+$jsonParse[$getUserVar[ticketConfig;$botID]]
+$if[$checkContains[$channelName[$channelID];📌┆]==false]
+$modifyChannel[$channelID;📌┆$channelName[$channelID];;false;0;$parentID]
+$if[$json[loggingChannel]!=]
+$sendEmbedMessage[$json[loggingChannel];$var[staffPings];Ticket Stickied: #$channelName[$channelID];https://discord.com/channels/$guildID/$channelID;This ticket was marked as important by <@$authorID>.;#f1c40f;$username[$authorID];$authorAvatar;Powered by $username[$botID];$userAvatar[$botID];;;true;]
+$endif
+$else
+$textSplit[$channelName[$channelID];┆]
+$modifyChannel[$channelID;$splitText[2];;false;0;$parentID]
+$if[$json[loggingChannel]!=]
+$sendEmbedMessage[$json[loggingChannel];;Ticket Unstickied: #$channelName[$channelID];https://discord.com/channels/$guildID/$channelID;This ticket was un-stickied by <@$authorID>.;#3498db;$username[$authorID];$authorAvatar;Powered by $username[$botID];$userAvatar[$botID];;;true;]
+$endif
+$endif
+$stop
+$endif
+
+$c[User Info Button]
+$if[$customID==cuserInfo]
+$ephemeral
+$textSplit[$getChannelVar[ticket];,]
+$var[openerID;$splitText[1]]
+$removeAllComponents
+$title[User Information]
+$thumbnail[$userAvatar[$var[openerID]]]
+$color[#5865F2]
+$addField[User;<@$var[openerID]> (`$username[$var[openerID]]`)]
+$addField[ID;`$var[openerID]`]
+$addField[Joined;```$userJoined[$var[openerID];Mon, Jan 02, 2006 at 03:04 PM]```;true]
+$addField[Registered;```$userJoinedDiscord[$var[openerID];Mon, Jan 02, 2006 at 03:04 PM]```;true]
+$httpGet[https://cautious-telegram-ivory.vercel.app/tickets/pp?perms=$userPerms[$var[openerID];-1;,]]
+$addField[Permissions;```$httpResult```;false]
+$stop
+$endif
+</pre>
+                    </div>
+                </div>
+
+                <!-- Transcript Logger -->
+                <div class="animate-enter delay-300">
+                    <div class="flex items-center justify-between mb-4 px-2">
+                        <div>
+                            <h2 class="text-2xl font-bold text-white">3. Transcripts</h2>
+                            <p class="text-gray-500 text-sm mt-1">Saves messages to the web interface.</p>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs font-mono text-gray-500 block mb-1">TRIGGER</span>
+                            <span class="bg-white/5 text-pink-300 px-3 py-1 rounded-md text-sm font-mono border border-white/5">$alwaysReply</span>
+                        </div>
+                    </div>
+                    
+                    <div class="code-editor group">
+                        <div class="editor-header" onclick="toggleCode(this)">
+                            <div class="editor-controls-left">
+                                <svg class="chevron-icon w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                <div class="editor-dots">
+                                    <div class="dot dot-red"></div>
+                                    <div class="dot dot-yellow"></div>
+                                    <div class="dot dot-green"></div>
+                                </div>
+                            </div>
+                            <button class="copy-btn flex items-center gap-2 text-xs font-medium text-gray-400 hover:text-white transition-colors" data-target="code-3" onclick="event.stopPropagation()">
+                                <span class="copy-label">Copy Code</span>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                            </button>
+                        </div>
+                        <pre id="code-3" class="editor-content bdfd-code">
+$onlyIf[$getChannelVar[ticket]!=0;]
+$jsonParse[$getUserVar[ticketConfig;$botID]]
+$onlyIf[$json[transcripts]==true;]
+$try
+$var[attachment;$getAttachments[0]]
+$httpGet[https://cautious-telegram-ivory.vercel.app/tickets/transcript?id=$channelID&amp;user=$username&amp;avatar=$authorAvatar&amp;timestamp=$getTimestamp&amp;messageContent=$url[encode;$message $var[attachment]]]
+$catch
+$httpGet[https://cautious-telegram-ivory.vercel.app/tickets/transcript?id=$channelID&amp;user=$username&amp;avatar=$authorAvatar&amp;timestamp=$getTimestamp&amp;messageContent=$url[encode;$message]]
+$endtry
+</pre>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right Column: Info & Credits -->
+            <div class="lg:col-span-4 space-y-8">
+                
+                <!-- Variables Widget -->
+                <div class="glass-panel p-6 animate-enter delay-100">
+                    <h3 class="font-bold text-lg mb-4 text-white flex items-center gap-2">
+                        <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                        Variables Needed
+                    </h3>
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center p-3 rounded-lg bg-black/20 border border-white/5">
+                            <code class="text-sm font-mono text-purple-300">ticket</code>
+                            <code class="text-sm font-mono text-gray-500">0</code>
+                        </div>
+                        <div class="flex justify-between items-center p-3 rounded-lg bg-black/20 border border-white/5">
+                            <code class="text-sm font-mono text-purple-300">ticketConfig</code>
+                            <code class="text-sm font-mono text-gray-500">{}</code>
+                        </div>
+                        <div class="flex justify-between items-center p-3 rounded-lg bg-black/20 border border-white/5">
+                            <code class="text-sm font-mono text-purple-300">ticketRoles</code>
+                            <code class="text-sm font-mono text-gray-500">{}</code>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contributors Widget -->
+                <div class="glass-panel p-6 animate-enter delay-200">
+                    <h3 class="font-bold text-lg mb-4 text-white flex items-center gap-2">
+                        <svg class="w-5 h-5 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        Credits
+                    </h3>
+                    <div class="space-y-4">
+                        <div class="flex items-center gap-3">
+                            <img src="../assets/p61s.png" alt="p61s" class="w-10 h-10 rounded-full shadow-lg shadow-purple-500/20 object-cover">
+                            <div>
+                                <div class="font-semibold text-white">@p61s</div>
+                                <div class="text-xs text-gray-500">API & Core</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <img src="../assets/catearo.png" alt="catearo" class="w-10 h-10 rounded-full shadow-lg shadow-pink-500/20 object-cover">
+                            <div>
+                                <div class="font-semibold text-white">@catearo</div>
+                                <div class="text-xs text-gray-500">Code Support</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <img src="../assets/tevq3.png" alt="tevq3" class="w-10 h-10 rounded-full shadow-lg shadow-emerald-500/20 object-cover">
+                            <div>
+                                <div class="font-semibold text-white">@tevq3</div>
+                                <div class="text-xs text-gray-500">Code Support</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <img src="../assets/null_y34r1.png" alt="null_y34r1" class="w-10 h-10 rounded-full shadow-lg shadow-blue-500/20 object-cover">
+                            <div>
+                                <div class="font-semibold text-white">@null_y34r1</div>
+                                <div class="text-xs text-gray-500">Code Support</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <footer class="border-t border-white/5 bg-black/50 py-12">
+        <div class="max-w-7xl mx-auto px-6 text-center text-gray-500 text-sm">
+            <p>&copy; <span id="year"></span> StarBDFD. Built for the community.</p>
+        </div>
+    </footer>
+
+    <script>
+        document.getElementById('year').textContent = new Date().getFullYear();
+
+        // Exact hex colors calculated from the provided Integers (ARGB/RGB)
+        // Adjusting slightly for visibility on dark mode where necessary while keeping tone
+        const colors = {
+            text: "#E6BAFF",      // 0xFF9900A9 (Original was dark purple, lightened for readability)
+            fallback: "#7223FF",  // 0xFF7223FF
+            bracket: "#FF5C4C",   // 0xFFFF5C4C
+            semicolon: "#FF584A", // 0xFFFF584A
+            func: "#FF87F9",      // 0xFFFF87F9
+            logic: "#A22FFC"      // 0xFFA22FFC
+        };
+
+        const logicFuncs = ["$if", "$else", "$elseif", "$endif", "$try", "$catch", "$endtry", "$error", "$c"];
+
+        function syntaxHighlight() {
+            const blocks = document.querySelectorAll('.bdfd-code');
+            
+            blocks.forEach(block => {
+                let text = block.innerText;
+                let html = '';
+                
+                // Tokenizer regex
+                const regex = /(\$[a-zA-Z]+)|(\[)|(\])|(\;)|([^$\[\];]+)/g;
+                
+                let match;
+                while ((match = regex.exec(text)) !== null) {
+                    const [full, func, open, close, semi, other] = match;
+                    
+                    if (func) {
+                        let color = colors.func; // Default function color
+                        if (logicFuncs.includes(func)) color = colors.logic;
+                        html += `<span style="color: ${color}">${func}</span>`;
+                    } else if (open || close) {
+                        html += `<span style="color: ${colors.bracket}">${open || close}</span>`;
+                    } else if (semi) {
+                        html += `<span style="color: ${colors.semicolon}">${semi}</span>`;
+                    } else if (other) {
+                        // Fix for entity re-parsing (e.g., &timestamp becoming ×tamp)
+                        const escapedOther = other.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                        html += `<span style="color: ${colors.text}">${escapedOther}</span>`;
+                    }
+                }
+                block.innerHTML = html;
+            });
+        }
+
+        // Copy Handler
+        document.querySelectorAll('.copy-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const targetId = btn.getAttribute('data-target');
+                const text = document.getElementById(targetId).innerText;
+                
+                navigator.clipboard.writeText(text).then(() => {
+                    const label = btn.querySelector('.copy-label');
+                    const icon = btn.querySelector('svg');
+                    const originalLabel = label.textContent;
+                    const originalIcon = icon.innerHTML;
+
+                    label.textContent = "Copied";
+                    label.classList.add('text-green-400');
+                    icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>';
+                    icon.classList.add('text-green-400');
+
+                    setTimeout(() => {
+                        label.textContent = originalLabel;
+                        label.classList.remove('text-green-400');
+                        icon.innerHTML = originalIcon;
+                        icon.classList.remove('text-green-400');
+                    }, 2000);
+                });
+            });
+        });
+
+        // Minimize / Collapse Handler
+        function toggleCode(header) {
+            const container = header.parentElement;
+            const content = container.querySelector('.editor-content');
+            
+            container.classList.toggle('is-collapsed');
+            content.classList.toggle('collapsed');
+        }
+
+        syntaxHighlight();
+    </script>
+</body>
+</html>
