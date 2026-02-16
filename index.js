@@ -67,7 +67,10 @@ const helpers = {
 
   /**
    * Deep clone an object
-   * @param {Object} obj - The object to clone
+   * Note: This method uses JSON serialization and won't preserve functions, 
+   * undefined values, Dates, RegExp, or handle circular references.
+   * For simple objects with primitive values only.
+   * @param {Object} obj - The object to clone (should contain only JSON-serializable values)
    * @returns {Object} Cloned object
    */
   deepClone: function(obj) {
