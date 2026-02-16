@@ -1,4 +1,4 @@
-# dev-codes.net
+# dev-codelist.net
 
 A modern, interactive code showcase website template with syntax highlighting, collapsible code blocks, and a beautiful dark theme.
 
@@ -9,7 +9,7 @@ Open `index.html` in your browser to see the template in action!
 ## 📁 Project Structure
 
 ```
-dev-codes.net/
+dev-codelist.net/
 ├── index.html       # Main HTML structure
 ├── styles.css       # External stylesheet with all styling
 └── README.md        # This file
@@ -26,7 +26,7 @@ The website is organized into several key sections:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>dev-codes.net | Code Showcase Template</title>
+    <title>dev-codelist.net | Code Showcase Template</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="..." rel="stylesheet">  <!-- Google Fonts -->
     <link rel="stylesheet" href="styles.css">  <!-- External CSS -->
