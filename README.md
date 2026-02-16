@@ -26,7 +26,7 @@ The website is organized into several key sections:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StarBDFD | Ticket System</title>
+    <title>dev-codes.net | Code Showcase Template</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="..." rel="stylesheet">  <!-- Google Fonts -->
     <link rel="stylesheet" href="styles.css">  <!-- External CSS -->
@@ -159,7 +159,7 @@ Creates a modern "glass morphism" effect with transparency and blur.
 #### 4. **Collapse Animation**
 ```css
 .editor-content {
-    max-height: 2000px;  /* Default: expanded */
+    max-height: 5000px;  /* Default: expanded */
     transition: max-height 0.4s ease, padding 0.3s ease;
 }
 
