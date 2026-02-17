@@ -14,7 +14,7 @@ async function loadComponent(elementId, componentPath) {
                 
                 // Determine if we are in a subfolder
                 const path = window.location.pathname;
-                const isInSubfolder = path.includes('/Codes/');
+                const isInSubfolder = path.includes('/codes/');
                 const basePath = isInSubfolder ? '../' : '';
                 
                 // Update all relative links in header to work from subfolders
@@ -52,7 +52,7 @@ async function loadComponent(elementId, componentPath) {
             // If this is the footer, update logo path if in subfolder
             if (elementId === 'footer-placeholder') {
                 const path = window.location.pathname;
-                const isInSubfolder = path.includes('/Codes/');
+                const isInSubfolder = path.includes('/codes/');
                 
                 if (isInSubfolder) {
                     const logoImage = element.querySelector('img[src*="Logo.png"]');
@@ -74,7 +74,7 @@ async function loadComponent(elementId, componentPath) {
 document.addEventListener('DOMContentLoaded', async function() {
     // Determine the base path based on current location
     const path = window.location.pathname;
-    const isInSubfolder = path.includes('/Codes/');
+    const isInSubfolder = path.includes('/codes/');
     const basePath = isInSubfolder ? '../' : '';
     
     await loadComponent('header-placeholder', basePath + 'header.html');
