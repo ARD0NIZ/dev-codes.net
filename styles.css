@@ -75,9 +75,9 @@ body {
 }
 
 .dot { width: 10px; height: 10px; border-radius: 50%; }
-.dot-red { background: #ff5f56; box-shadow: 0 0 10px rgba(255, 95, 86, 0.2); }
-.dot-yellow { background: #ffbd2e; box-shadow: 0 0 10px rgba(255, 189, 46, 0.2); }
-.dot-green { background: #27c93f; box-shadow: 0 0 10px rgba(39, 201, 63, 0.2); }
+.dot-red { background: #5024F4; box-shadow: 0 0 10px rgba(80, 36, 244, 0.3); }
+.dot-yellow { background: #7B4FFF; box-shadow: 0 0 10px rgba(123, 79, 255, 0.3); }
+.dot-green { background: #9D7FFF; box-shadow: 0 0 10px rgba(157, 127, 255, 0.3); }
 
 /* Collapse Animation Logic */
 .editor-content {
